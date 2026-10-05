@@ -1,0 +1,20 @@
+{
+  "name": "geniffy",
+  "displayName": "Geniffy",
+  "version": "0.1.0",
+  "description": "Memory for Claude Code: each session starts with what Geniffy remembers about you and the project, and what you discuss is saved as you go, every fact with the line it came from.",
+  "author": {
+    "name": "Geniffy",
+    "email": "ops@geniffy.com",
+    "url": "https://geniffy.com"
+  },
+  "homepage": "https://docs.geniffy.com/mcp/claude-code",
+  "repository": "https://github.com/Geniffy/geniffy-claude-code",
+  "license": "MIT",
+  "keywords": ["memory", "context", "mcp", "geniffy"],
+  "icon": "./logo.png",
+  "documentationUrl": "https://docs.geniffy.com/mcp/claude-code",
+  "supportUrl": "https://github.com/Geniffy/geniffy-claude-code/issues",
+  "privacyPolicyUrl": "https://geniffy.com/privacy",
+  "termsOfServiceUrl": "https://geniffy.com/terms"
+}

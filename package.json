@@ -1,0 +1,13 @@
+{
+  "name": "geniffy-claude-code",
+  "private": true,
+  "description": "Geniffy for Claude Code: memory that remembers you and your projects.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/scrub.test.mjs test/flow.test.mjs"
+  }
+}

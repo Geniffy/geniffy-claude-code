@@ -1,0 +1,17 @@
+{
+  "name": "geniffy",
+  "owner": {
+    "name": "Geniffy",
+    "email": "ops@geniffy.com",
+    "url": "https://geniffy.com"
+  },
+  "description": "Geniffy for Claude Code: memory that remembers you and your projects, every fact with the line it came from.",
+  "plugins": [
+    {
+      "name": "geniffy",
+      "source": "./plugin",
+      "category": "productivity",
+      "tags": ["memory", "context", "mcp"]
+    }
+  ]
+}
