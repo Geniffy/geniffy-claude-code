@@ -1,8 +1,8 @@
 {
   "name": "geniffy",
   "displayName": "Geniffy",
-  "version": "0.1.0",
-  "description": "Memory for Claude Code: each session starts with what Geniffy remembers about you and the project, and what you discuss is saved as you go, every fact with the line it came from.",
+  "version": "0.2.0",
+  "description": "Memory for Claude Code: each session starts where things stand on the project (its goal, open items, decisions, what is due, the lessons learned and what happened last time), and every turn is saved whole as you go, tool calls and results included, secrets removed.",
   "author": {
     "name": "Geniffy",
     "email": "ops@geniffy.com",
@@ -11,7 +11,12 @@
   "homepage": "https://docs.geniffy.com/mcp/claude-code",
   "repository": "https://github.com/Geniffy/geniffy-claude-code",
   "license": "MIT",
-  "keywords": ["memory", "context", "mcp", "geniffy"],
+  "keywords": [
+    "memory",
+    "context",
+    "mcp",
+    "geniffy"
+  ],
   "icon": "./logo.png",
   "documentationUrl": "https://docs.geniffy.com/mcp/claude-code",
   "supportUrl": "https://github.com/Geniffy/geniffy-claude-code/issues",

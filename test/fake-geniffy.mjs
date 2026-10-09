@@ -9,6 +9,7 @@ export async function startFake({ accessTtl = 3600, scope = "memory:read memory:
   const s = {
     clients: new Map(), codes: new Map(), access: new Map(), refresh: new Map(),
     refreshCalls: 0, revoked: [], remembered: [], ended: false, deny: false, scope, accessTtl,
+    briefing: null, briefed: [],   // set briefing to answer the briefing tool, as a Geniffy with briefings does
   };
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, base);
@@ -104,6 +105,10 @@ export async function startFake({ accessTtl = 3600, scope = "memory:read memory:
             { id: "memory:2", title: "y", url: "u", text: "Lunch is at one.", said_at: "2026-09-30T09:00:00Z",
               source: { title: "Call with Priya" } },
           ] });
+        }
+        if (name === "briefing" && s.briefing) {
+          s.briefed.push(args);
+          return toolResult(s.briefing);
         }
         if (name === "remember") {
           if (!s.scope.includes("memory:write")) return json(200, { jsonrpc: "2.0", id: rid, error: { code: -32602, message: "Unknown tool" } });

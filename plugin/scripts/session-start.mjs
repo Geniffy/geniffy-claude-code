@@ -1,5 +1,7 @@
-// SessionStart: Claude starts each session knowing what Geniffy remembers about the person and this project.
-// Kept short, because it is read at the start of every session, and quiet when there is nothing to say.
+// SessionStart: Claude starts each session where things stand. Geniffy's briefing for this project comes first:
+// its goal, focus, open items, decisions and next steps, what is due, the rules and lessons that apply, what
+// happened last time, then the memories, each dated. Where the briefing is not there yet (an older Geniffy), what
+// Geniffy remembers about the person and this project, as before. Quiet when there is nothing to say.
 import { credentials, hookInput, projectName, reply, setState, state, sweepTurns, tool } from "./lib.mjs";
 
 const input = await hookInput();
@@ -27,6 +29,43 @@ if (!credentials()) {
   process.exit(0);
 }
 
+const intro = "You have this user's Geniffy memory: what they and their AI tools went through before, each part from a " +
+  "real source. Use it when it helps and don't recite it. When it doesn't cover something, say so instead of " +
+  "guessing. The memory tools can find more (briefing with a cue, search, ask).";
+const BUDGET = 5000;
+
+function done(text, count, what) {
+  reply({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: count
+        ? `${intro}\n\n${text}`.slice(0, BUDGET + intro.length + 2)
+        : `This user's Geniffy memory is connected, and holds nothing yet about them or ${project}. It learns from this session.`,
+    },
+    ...(count ? { systemMessage: `Geniffy ${what} for this session.` } : {}),
+  });
+  process.exit(0);
+}
+
+// The briefing: one read of everything the moment needs.
+let briefed = null;
+try {
+  briefed = await tool("briefing", { project, budget_chars: BUDGET }, { timeoutMs: 8000 });
+} catch (err) {
+  if (err?.name === "NotSignedIn" && !credentials()) {
+    signedOut();
+    process.exit(0);
+  }
+}
+if (briefed && typeof briefed.briefing === "string") {
+  const n = (k) => (Array.isArray(briefed[k]) ? briefed[k].length : 0);
+  const stands = n("now") ? "where things stand" : null;
+  const parts = [stands, n("due") && `${n("due")} due`, n("episodes") && `${n("episodes")} earlier ${n("episodes") === 1 ? "episode" : "episodes"}`,
+                 n("memories") && `${n("memories")} ${n("memories") === 1 ? "memory" : "memories"}`].filter(Boolean);
+  done(briefed.briefing.trim(), briefed.briefing.trim() ? 1 : 0, `briefed you: ${parts.join(", ") || "what it holds"}`);
+}
+
+// An older Geniffy: the profile and what was said about this project.
 const words = (item) => (typeof item === "string" ? item : item?.value || item?.text || "").trim();
 const when = (m) => String(m.said_at || m.learned_at || "").slice(0, 10);
 
@@ -55,17 +94,5 @@ if (projectMemories.length) {
   lines.push(`From earlier work on ${project}:`,
              ...projectMemories.map((m) => `- ${m.text}${when(m) ? `  (${when(m)})` : ""}`));
 }
-
 const total = lasting.length + current.length + projectMemories.length;
-const intro = "You have this user's Geniffy memory: what they told AI tools before, each memory from a real source. " +
-  "Use it when it helps and don't recite it. When it doesn't cover something, say so instead of guessing. " +
-  "The memory tools can search for more.";
-reply({
-  hookSpecificOutput: {
-    hookEventName: "SessionStart",
-    additionalContext: total
-      ? `${intro}\n\n${lines.join("\n")}`.slice(0, 2400)
-      : `This user's Geniffy memory is connected, and holds nothing yet about them or ${project}. It learns from this session.`,
-  },
-  ...(total ? { systemMessage: `Geniffy recalled ${total} ${total === 1 ? "memory" : "memories"} for this session.` } : {}),
-});
+done(lines.join("\n").slice(0, 2400), total, `recalled ${total} ${total === 1 ? "memory" : "memories"}`);

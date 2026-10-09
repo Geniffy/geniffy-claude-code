@@ -89,6 +89,7 @@ test("signing in, recalling, saving, refreshing and signing out", async () => {
     assert.equal(fake.s.remembered.length, 1);
     const saved = fake.s.remembered[0];
     assert.equal(saved.title, "Claude Code: demo-app");
+    assert.equal(saved.session, "s1", "every turn of a session goes into one note for the session");
     assert.equal(saved.messages[0].role, "user");
     assert.match(saved.messages[0].content, /We always deploy on Tuesdays\./);
     assert.doesNotMatch(JSON.stringify(saved), /sk-ant-|hunter2|\/geniffy:status/);

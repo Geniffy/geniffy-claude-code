@@ -23,7 +23,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "mcp__plugin_geniffy_memory__(search|fetch|ask|profile|list_memories)",
+        "matcher": "mcp__plugin_geniffy_memory__(briefing|search|fetch|ask|profile|list_memories)",
         "hooks": [
           { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/allow-reads.mjs"], "timeout": 5 }
         ]

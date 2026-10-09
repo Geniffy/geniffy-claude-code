@@ -33,15 +33,17 @@ export function writeJson(name, value) {
   fs.renameSync(tmp, file(name));
 }
 
-// Prompts left behind by turns that never finished, a couple of days old, are cleared out.
+// Prompts left behind by turns that never finished, a couple of days old, are cleared out, and where old
+// sessions' saves stopped, after a month.
 export function sweepTurns(olderThanMs = 2 * 24 * 3600_000) {
-  const dir = file("turns");
-  try {
-    for (const f of fs.readdirSync(dir)) {
-      const p = path.join(dir, f);
-      if (Date.now() - fs.statSync(p).mtimeMs > olderThanMs) fs.rmSync(p, { force: true });
-    }
-  } catch {}
+  for (const [dir, age] of [[file("turns"), olderThanMs], [file("cursors"), 30 * 24 * 3600_000]]) {
+    try {
+      for (const f of fs.readdirSync(dir)) {
+        const p = path.join(dir, f);
+        if (Date.now() - fs.statSync(p).mtimeMs > age) fs.rmSync(p, { force: true });
+      }
+    } catch {}
+  }
 }
 
 export function removeFile(name) {
@@ -241,6 +243,129 @@ export function exchange(prompts, reply) {
   if (answer) messages.push({ role: "assistant", content: answer });
   return messages;
 }
+
+// ── a whole session ─────────────────────────────────────────────────────────────────────────────────────
+// What Claude Code wrote to the session's transcript since the last save, as messages: what the person and Claude
+// said, and every tool Claude ran with what came back. Geniffy learns facts only from what was said; the tool turns
+// tell it what happened (the episodes, where the project stands, the lessons). Secrets go before anything leaves
+// this computer, and a long code block or tool output is kept as its start and its end.
+const SAID = 6000, CALL = 400, RESULT = 2000, CODE = 1200;
+
+export function clip(text, n) {
+  const s = String(text || "").trim();
+  if (s.length <= n) return s;
+  const head = Math.floor((n * 2) / 3);
+  return `${s.slice(0, head).trimEnd()}\n[… ${s.length - n} characters cut …]\n${s.slice(s.length - (n - head)).trimStart()}`;
+}
+
+function said(text) {
+  const plain = String(text || "").replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "");
+  const code = plain.replace(/```[\s\S]*?(?:```|$)/g, (block) => clip(block, CODE));
+  return clip(scrub(code).replace(/\n{3,}/g, "\n\n"), SAID);
+}
+
+function blocksText(content) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content.map((b) => (typeof b === "string" ? b : b?.type === "text" ? b.text : b?.type === "image" ? "[image]" : ""))
+    .filter(Boolean).join("\n");
+}
+
+function compact(value) {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+// Claude Code's own lines about slash commands, not something anyone said.
+const NOISE = /^\s*<(?:command-name|command-message|command-args|local-command-stdout|local-command-stderr)>|^Caveat: The messages below/;
+
+// Geniffy's own memory tools: what they bring back is the memory itself, so it is never saved back into it.
+const OWN = /^mcp__plugin_geniffy_memory__|^mcp__geniffy__/;
+
+export function sessionMessages(lines) {
+  const names = new Map();
+  const out = [];
+  lines.forEach((line, i) => {
+    let e;
+    try {
+      e = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (!e || e.isSidechain || e.isMeta || (e.type !== "user" && e.type !== "assistant") || !e.message) return;
+    const add = (m) => out.push({ ...m, ...(typeof e.timestamp === "string" ? { time: e.timestamp } : {}), line: i });
+    const content = e.message.content;
+    if (e.type === "user") {
+      const blocks = typeof content === "string" ? [{ type: "text", text: content }] : Array.isArray(content) ? content : [];
+      for (const b of blocks) {
+        if (b?.type === "text" && !NOISE.test(b.text || "")) {
+          const t = said(b.text);
+          if (t) add({ role: "user", content: t });
+        } else if (b?.type === "tool_result" && !OWN.test(names.get(b.tool_use_id) || "")) {
+          const t = clip(scrub(blocksText(b.content)), RESULT) || "(no output)";
+          add({ role: "tool", name: names.get(b.tool_use_id) || "tool", content: b.is_error ? `Failed: ${t}` : t });
+        }
+      }
+      return;
+    }
+    for (const b of Array.isArray(content) ? content : [{ type: "text", text: String(content || "") }]) {
+      if (b?.type === "text") {
+        const t = said(b.text);
+        if (t) add({ role: "assistant", content: t });
+      } else if (b?.type === "tool_use") {
+        names.set(b.id, b.name || "tool");
+        if (OWN.test(b.name || "")) continue;
+        add({ role: "tool_call", name: b.name || "tool", content: clip(scrub(compact(b.input ?? "")), CALL) || "(no input)" });
+      }
+    }
+  });
+  return out;
+}
+
+// The transcript lines not saved yet: from where this session's last save stopped. A line still being written
+// (no newline yet) waits for the next save.
+const cursorFile = (sessionId) => path.join("cursors", `${String(sessionId || "unknown").replace(/[^A-Za-z0-9_-]/g, "_")}.json`);
+
+export function unsaved(sessionId, transcriptPath) {
+  let text;
+  try {
+    text = fs.readFileSync(transcriptPath, "utf8");
+  } catch {
+    return null;
+  }
+  const lines = text.split("\n").slice(0, -1);
+  let from = Number(readJson(cursorFile(sessionId))?.line) || 0;
+  if (from > lines.length) from = 0; // the transcript was written anew
+  return { from, lines: lines.slice(from), upTo: lines.length };
+}
+
+export const markSaved = (sessionId, line) => writeJson(cursorFile(sessionId), { line, at: new Date().toISOString() });
+
+// Calls the memory server takes in one go: at most 300 messages and 200,000 characters each.
+export function batches(messages, most = 300, chars = 200_000) {
+  const out = [];
+  let cur = [], size = 0;
+  for (const m of messages) {
+    const n = m.content.length + 50;
+    if (cur.length && (cur.length >= most || size + n > chars)) {
+      out.push(cur);
+      cur = [];
+      size = 0;
+    }
+    cur.push(m);
+    size += n;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+// Something worth a memory: anything the person or Claude said beyond a word or two.
+export const worthSaving = (messages) =>
+  messages.some((m) => (m.role === "user" || m.role === "assistant") && m.content.replace(/\[secret removed\]/g, "").trim().length >= 12);
 
 export function projectName(cwd) {
   return path.basename(path.resolve(cwd || process.cwd())) || "a project";

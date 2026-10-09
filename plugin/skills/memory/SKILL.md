@@ -13,7 +13,9 @@ Claude.ai, ChatGPT, Cursor and other apps. Each memory comes with where and when
 - Before answering anything about the user themselves, their preferences, the people they work with, their
   plans, or decisions made earlier, use `search` (or `ask` for a direct question).
 - When the user refers to earlier work ("like we did last time", "the approach we agreed on"), search for it.
-- The session already starts with a short summary of what is known. Search when you need more than that.
+- The session already starts with a briefing: where the project stands, what is due, the lessons that apply and
+  what happened last time. When the task changes, call `briefing` again with the new task as `cue`.
+- Search when you need a specific fact the briefing does not hold.
 
 ## How to use what you find
 
@@ -24,8 +26,8 @@ Claude.ai, ChatGPT, Cursor and other apps. Each memory comes with where and when
 
 ## Saving
 
-- Each exchange is saved automatically after Claude finishes a turn, unless the user paused saving
-  (`/geniffy:pause`). So don't save things again by hand.
+- Each turn is saved automatically after Claude finishes it, tool calls and results included, unless the user
+  paused saving (`/geniffy:pause`). So don't save things again by hand.
 - Use `remember` only when the user explicitly asks you to remember something.
 - Never save passwords, API keys, tokens or other secrets, even when asked. Say why instead.
 - When the user says a memory is wrong, use `correct`. When they ask to forget something, use `forget`.

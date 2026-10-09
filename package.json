@@ -8,6 +8,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/scrub.test.mjs test/flow.test.mjs"
+    "test": "node --test test/scrub.test.mjs test/flow.test.mjs test/session.test.mjs"
   }
 }
